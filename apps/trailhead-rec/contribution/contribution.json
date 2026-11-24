@@ -90,6 +90,16 @@
           "name": "trailhead-rec.court.cancel",
           "effect": "write",
           "caller": "agent"
+        },
+        {
+          "name": "trailhead-rec.enrollment.transfer",
+          "effect": "write",
+          "caller": "agent"
+        },
+        {
+          "name": "trailhead-rec.court.booking.modify",
+          "effect": "write",
+          "caller": "agent"
         }
       ]
     },
@@ -153,7 +163,7 @@
   "events": {
     "accepts": [
       {
-        "type": "waitlist.offer_issued",
+        "type": "waitlist.spot_opened",
         "schema_ref": "schemas/events.schema.json",
         "status": "implemented"
       },

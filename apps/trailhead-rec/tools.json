@@ -670,7 +670,8 @@
               "status": {
                 "enum": [
                   "active",
-                  "expired"
+                  "expired",
+                  "depleted"
                 ]
               },
               "issued_at": {
@@ -708,7 +709,8 @@
               "effective_status": {
                 "enum": [
                   "active",
-                  "expired"
+                  "expired",
+                  "depleted"
                 ]
               }
             },
@@ -734,7 +736,7 @@
   },
   {
     "name": "trailhead-rec.household.update_member",
-    "description": "Update a household member's emergency_contact, medical_notes, or preferred_facility_id (waivers cannot be modified by Agents).",
+    "description": "Update a household member's emergency_contact or preferred_facility_id (waivers and medical notes cannot be modified by Agents).",
     "read_only": false,
     "scope": "trailhead-rec.household.update_member",
     "resource_target": "current account",
@@ -751,10 +753,6 @@
             "emergency_contact": {
               "type": "string",
               "maxLength": 240
-            },
-            "medical_notes": {
-              "type": "string",
-              "maxLength": 500
             },
             "preferred_facility_id": {
               "anyOf": [
@@ -916,6 +914,7 @@
                   "waitlisted",
                   "offer_pending",
                   "enrolled",
+                  "transferred",
                   "offer_expired",
                   "declined",
                   "withdrawn"
@@ -1027,6 +1026,7 @@
                   "waitlisted",
                   "offer_pending",
                   "enrolled",
+                  "transferred",
                   "offer_expired",
                   "declined",
                   "withdrawn"
@@ -1121,6 +1121,7 @@
                 "waitlisted",
                 "offer_pending",
                 "enrolled",
+                "transferred",
                 "offer_expired",
                 "declined",
                 "withdrawn"
@@ -1222,6 +1223,7 @@
             "waitlisted",
             "offer_pending",
             "enrolled",
+            "transferred",
             "offer_expired",
             "declined",
             "withdrawn"
@@ -1368,6 +1370,17 @@
         "request_id": {
           "type": "string",
           "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,99}$"
+        },
+        "use_pass_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,99}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
@@ -2062,6 +2075,17 @@
         "request_id": {
           "type": "string",
           "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,99}$"
+        },
+        "use_pass_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,99}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
@@ -2212,6 +2236,206 @@
         "version",
         "id",
         "refunded_cents"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "trailhead-rec.enrollment.transfer",
+    "description": "Transfer an enrolled registration to another open eligible program, marking the prior enrollment transferred and settling any fee difference against household credit.",
+    "read_only": false,
+    "scope": "trailhead-rec.enrollment.transfer",
+    "resource_target": "current account",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,99}$"
+        },
+        "target_program_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,99}$"
+        },
+        "new_enrollment_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,99}$"
+        },
+        "expected_version": {
+          "type": "object",
+          "properties": {
+            "epoch": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "epoch",
+            "revision"
+          ],
+          "additionalProperties": false
+        },
+        "request_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,99}$"
+        }
+      },
+      "required": [
+        "id",
+        "target_program_id",
+        "expected_version",
+        "request_id"
+      ],
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "const": "committed"
+        },
+        "app_id": {
+          "const": "trailhead-rec"
+        },
+        "version": {
+          "type": "object",
+          "properties": {
+            "epoch": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "epoch",
+            "revision"
+          ],
+          "additionalProperties": false
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,99}$"
+        },
+        "previous_enrollment_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,99}$"
+        },
+        "fee_delta_cents": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "status",
+        "app_id",
+        "version",
+        "id",
+        "previous_enrollment_id",
+        "fee_delta_cents"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "trailhead-rec.court.booking.modify",
+    "description": "Reschedule a confirmed court booking to another open non-past court slot, settling any fee delta against household credit.",
+    "read_only": false,
+    "scope": "trailhead-rec.court.booking.modify",
+    "resource_target": "current account",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,99}$"
+        },
+        "new_slot_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,99}$"
+        },
+        "expected_version": {
+          "type": "object",
+          "properties": {
+            "epoch": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "epoch",
+            "revision"
+          ],
+          "additionalProperties": false
+        },
+        "request_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,99}$"
+        }
+      },
+      "required": [
+        "id",
+        "new_slot_id",
+        "expected_version",
+        "request_id"
+      ],
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "const": "committed"
+        },
+        "app_id": {
+          "const": "trailhead-rec"
+        },
+        "version": {
+          "type": "object",
+          "properties": {
+            "epoch": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "epoch",
+            "revision"
+          ],
+          "additionalProperties": false
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,99}$"
+        },
+        "new_slot_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,99}$"
+        },
+        "fee_delta_cents": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "status",
+        "app_id",
+        "version",
+        "id",
+        "new_slot_id",
+        "fee_delta_cents"
       ],
       "additionalProperties": false
     }

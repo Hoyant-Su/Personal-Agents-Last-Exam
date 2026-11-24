@@ -10,7 +10,7 @@
     {
       "source_id": "authored",
       "kind": "synthetic",
-      "description": "Original synthetic recreation records dated 2026-01-01 onward; zero municipal scraping.",
+      "description": "Original synthetic municipal recreation records spanning 2025-01-15 through late 2026; zero municipal scraping.",
       "uri": null,
       "license": "MIT",
       "usage": "permitted",
@@ -66,7 +66,7 @@
     "Normalized offset-bearing ISO-8601 timestamps (>= 2026-01-01), shared person_ref/account_id bindings, and recreation refund cutoffs."
   ],
   "expected_counts": {
-    "records": 46,
+    "records": 50,
     "assets": 8
   },
   "quality_policy": {

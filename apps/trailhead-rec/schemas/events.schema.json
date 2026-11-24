@@ -14,7 +14,7 @@
           "format": "date-time"
         },
         "operation": {
-          "const": "waitlist.offer_issued"
+          "const": "waitlist.spot_opened"
         },
         "payload": {
           "type": "object",

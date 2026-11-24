@@ -22,7 +22,7 @@
   },
   "dependencies": [],
   "event_types": [
-    "waitlist.offer_issued",
+    "waitlist.spot_opened",
     "facility.weather_closure",
     "member.waiver_status_changed",
     "program.schedule_changed"

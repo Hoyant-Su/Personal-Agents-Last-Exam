@@ -16,6 +16,17 @@ function findMember(data, personRef) {
 
 function assetWarning(ctx, assetId) {
   if (!assetId) return null;
+  if (ctx && ctx.assets && typeof ctx.assets.read === 'function') {
+    try {
+      ctx.assets.read(assetId);
+      return null;
+    } catch (err) {
+      if (err && (err.code === 'unavailable' || err.code === 'not_available')) {
+        return `ASSET_MISSING: optional facility/program card ${assetId} is not materialized`;
+      }
+      throw err;
+    }
+  }
   const catalog = ctx && ctx.resources && Array.isArray(ctx.resources.assets) ? ctx.resources.assets : null;
   if (!catalog) return null;
   const desc = catalog.find((a) => a.asset_id === assetId);
@@ -23,6 +34,17 @@ function assetWarning(ctx, assetId) {
     return `ASSET_MISSING: optional facility/program card ${assetId} is not materialized`;
   }
   return null;
+}
+
+function consumePass(data, passId, personRef, facilityId, virtualNow) {
+  const pass = findById(data.passes, passId, 'Pass');
+  if (pass.person_ref !== personRef) c.fail('validation_error', `Pass ${pass.id} does not belong to ${personRef}.`);
+  if (pass.facility_id !== facilityId) c.fail('validation_error', `Pass ${pass.id} is not valid at ${facilityId}.`);
+  const eff = c.effectivePassStatus(pass, virtualNow);
+  if (eff !== 'active') c.fail('pass_unavailable', `Pass ${pass.id} is ${eff}.`);
+  pass.remaining_visits -= 1;
+  if (pass.remaining_visits <= 0) pass.status = 'depleted';
+  return pass;
 }
 
 function handleTool(ctx, data, name, args) {
@@ -56,7 +78,7 @@ function handleTool(ctx, data, name, args) {
     };
   }
 
-  // --- Household (waivers are strictly read-only for Agents) ---
+  // --- Household (waivers & medical notes are strictly read-only for Agents) ---
   if (name === 'trailhead-rec.household.get') {
     const effective_pass_statuses = data.passes.map((p) => ({
       id: p.id,
@@ -79,7 +101,7 @@ function handleTool(ctx, data, name, args) {
     const patch = args.patch || {};
     if (!Object.keys(patch).length) c.fail('validation_error', 'Patch cannot be empty.');
     if (patch.preferred_facility_id) findById(data.facilities, patch.preferred_facility_id, 'Facility');
-    for (const k of ['emergency_contact', 'medical_notes', 'preferred_facility_id']) {
+    for (const k of ['emergency_contact', 'preferred_facility_id']) {
       if (patch[k] !== undefined) member[k] = patch[k];
     }
     return { data, result: { id: member.person_ref } };
@@ -118,17 +140,26 @@ function handleTool(ctx, data, name, args) {
     const program = findById(data.programs, args.program_id, 'Program');
     const member = findMember(data, args.person_ref);
     const check = c.evaluateEnrollment(data, { program, member, virtualNow: now });
-    if (!check.eligible) {
-      c.fail(check.reasons[0].toLowerCase(), `Enrollment blocked: ${check.reasons.join(', ')}`);
+    // If paying with an active facility pass, skip INSUFFICIENT_CREDIT
+    const blocking = args.use_pass_id
+      ? check.reasons.filter((r) => r !== 'INSUFFICIENT_CREDIT')
+      : check.reasons;
+    if (blocking.length) {
+      c.fail(blocking[0].toLowerCase(), `Enrollment blocked: ${blocking.join(', ')}`);
     }
+    const seatsOpen = Math.max(0, program.capacity - program.enrolled_count);
+    const isEnrolled = seatsOpen > 0;
     const id = c.nextId('enr', data.enrollments, args.id);
     const confirmation_code = `TH-${id.toUpperCase()}`;
-    const isEnrolled = check.outcome_if_submitted === 'enrolled';
     let fee_charged_cents = 0;
     let waitlist_position = null;
     if (isEnrolled) {
-      fee_charged_cents = check.fee_cents;
-      data.household_credit_cents -= fee_charged_cents;
+      if (args.use_pass_id) {
+        consumePass(data, args.use_pass_id, member.person_ref, program.facility_id, now);
+      } else {
+        fee_charged_cents = check.fee_cents;
+        data.household_credit_cents -= fee_charged_cents;
+      }
       program.enrolled_count += 1;
     } else {
       waitlist_position =
@@ -139,7 +170,7 @@ function handleTool(ctx, data, name, args) {
       account_id: data.account_id,
       program_id: program.id,
       person_ref: member.person_ref,
-      status: check.outcome_if_submitted,
+      status: isEnrolled ? 'enrolled' : 'waitlisted',
       waitlist_position,
       offer_expires_at: null,
       fee_paid_cents: fee_charged_cents,
@@ -148,13 +179,60 @@ function handleTool(ctx, data, name, args) {
       notes: args.notes || '',
       created_at: now,
       updated_at: now,
-      history: [{ at: now, action: check.outcome_if_submitted }],
+      history: [{ at: now, action: isEnrolled ? 'enrolled' : 'waitlisted' }],
     };
     data.enrollments.push(enr);
     return {
       data,
       result: { id, enrollment_status: enr.status, fee_charged_cents, confirmation_code },
     };
+  }
+
+  if (name === 'trailhead-rec.enrollment.transfer') {
+    c.syncVirtualExpirations(data, now);
+    const enr = findById(data.enrollments, args.id, 'Enrollment');
+    if (enr.status !== 'enrolled') {
+      c.fail('invalid_state_transition', `Only enrolled registrations can be transferred (current: ${enr.status}).`);
+    }
+    const srcPrg = findById(data.programs, enr.program_id, 'Program');
+    const dstPrg = findById(data.programs, args.target_program_id, 'Program');
+    if (srcPrg.id === dstPrg.id) c.fail('validation_error', 'Target program must differ from current program.');
+    if (dstPrg.enrolled_count >= dstPrg.capacity) c.fail('program_full', `Target program ${dstPrg.id} has no open seats.`);
+
+    const member = findMember(data, enr.person_ref);
+    const check = c.evaluateEnrollment(data, { program: dstPrg, member, virtualNow: now, forOfferAcceptance: true });
+    const blocking = check.reasons.filter((r) => r !== 'INSUFFICIENT_CREDIT');
+    if (blocking.length) c.fail(blocking[0].toLowerCase(), `Transfer blocked: ${blocking.join(', ')}`);
+
+    const fee_delta_cents = check.fee_cents - enr.fee_paid_cents;
+    if (fee_delta_cents > 0 && data.household_credit_cents < fee_delta_cents) {
+      c.fail('insufficient_credit', 'Insufficient household credit for transfer fee delta.');
+    }
+    data.household_credit_cents -= fee_delta_cents;
+    if (srcPrg.enrolled_count > 0) srcPrg.enrolled_count -= 1;
+    dstPrg.enrolled_count += 1;
+
+    enr.status = 'transferred';
+    c.stamp(enr, now, 'transferred', `Transferred to ${dstPrg.id}`);
+
+    const newId = c.nextId('enr', data.enrollments, args.new_enrollment_id);
+    data.enrollments.push({
+      id: newId,
+      account_id: data.account_id,
+      program_id: dstPrg.id,
+      person_ref: member.person_ref,
+      status: 'enrolled',
+      waitlist_position: null,
+      offer_expires_at: null,
+      fee_paid_cents: check.fee_cents,
+      refunded_cents: 0,
+      confirmation_code: `TH-${newId.toUpperCase()}`,
+      notes: `Transferred from ${enr.id}`,
+      created_at: now,
+      updated_at: now,
+      history: [{ at: now, action: 'transferred_in', note: `From ${enr.id}` }],
+    });
+    return { data, result: { id: newId, previous_enrollment_id: enr.id, fee_delta_cents } };
   }
 
   if (name === 'trailhead-rec.enrollment.accept_offer') {
@@ -167,6 +245,9 @@ function handleTool(ctx, data, name, args) {
     }
     c.syncVirtualExpirations(data, now);
     const program = findById(data.programs, enr.program_id, 'Program');
+    if (program.enrolled_count >= program.capacity) {
+      c.fail('program_full', `Program ${program.id} has no available capacity.`);
+    }
     const member = findMember(data, enr.person_ref);
     const check = c.evaluateEnrollment(data, { program, member, virtualNow: now, forOfferAcceptance: true });
     if (!check.eligible) {
@@ -177,7 +258,7 @@ function handleTool(ctx, data, name, args) {
     enr.waitlist_position = null;
     enr.offer_expires_at = null;
     enr.fee_paid_cents = check.fee_cents;
-    if (program.enrolled_count < program.capacity) program.enrolled_count += 1;
+    program.enrolled_count += 1;
     c.stamp(enr, now, 'offer_accepted');
     return { data, result: { id: enr.id, fee_charged_cents: check.fee_cents } };
   }
@@ -224,8 +305,12 @@ function handleTool(ctx, data, name, args) {
 
   // --- Athletic Court Bookings ---
   if (name === 'trailhead-rec.court.search') {
+    const nowMs = c.parseMs(now);
     const items = data.court_slots.filter((s) => {
       if (s.status !== 'open') return false;
+      if (c.parseMs(s.starts_at) <= nowMs) return false;
+      const fac = data.facilities.find((f) => f.id === s.facility_id);
+      if (c.isFacilityClosedAt(fac, s.starts_at)) return false;
       if (args.facility_id && s.facility_id !== args.facility_id) return false;
       if (args.sport && s.sport !== args.sport) return false;
       if (args.indoor !== undefined && s.indoor !== args.indoor) return false;
@@ -248,17 +333,27 @@ function handleTool(ctx, data, name, args) {
     const slot = findById(data.court_slots, args.slot_id, 'Court slot');
     const fac = findById(data.facilities, slot.facility_id, 'Facility');
     const member = findMember(data, args.person_ref);
-    if (fac.status === 'closed_weather' || slot.status === 'closed_weather') {
-      c.fail('facility_closed', `Court ${slot.id} is closed due to weather.`);
+    if (c.parseMs(slot.starts_at) <= c.parseMs(now)) {
+      c.fail('slot_in_past', `Court slot ${slot.id} starts in the past (${slot.starts_at}).`);
+    }
+    if (slot.status === 'closed_weather' || c.isFacilityClosedAt(fac, slot.starts_at)) {
+      c.fail('facility_closed', `Court ${slot.id} is closed due to weather until ${fac.closed_until}.`);
     }
     if (slot.status !== 'open') c.fail('slot_conflict', `Court slot ${slot.id} is not open.`);
-    if (data.household_credit_cents < slot.resident_fee_cents) {
-      c.fail('insufficient_credit', 'Insufficient household credit for court booking.');
+
+    let fee_charged_cents = 0;
+    if (args.use_pass_id) {
+      consumePass(data, args.use_pass_id, member.person_ref, slot.facility_id, now);
+    } else {
+      if (data.household_credit_cents < slot.resident_fee_cents) {
+        c.fail('insufficient_credit', 'Insufficient household credit for court booking.');
+      }
+      fee_charged_cents = slot.resident_fee_cents;
+      data.household_credit_cents -= fee_charged_cents;
     }
     const id = c.nextId('bkg', data.court_bookings, args.id);
     const confirmation_code = `TH-${id.toUpperCase()}`;
     slot.status = 'booked';
-    data.household_credit_cents -= slot.resident_fee_cents;
     const booking = {
       id,
       account_id: data.account_id,
@@ -269,7 +364,7 @@ function handleTool(ctx, data, name, args) {
       starts_at: slot.starts_at,
       ends_at: slot.ends_at,
       free_cancel_cutoff_at: slot.free_cancel_cutoff_at,
-      fee_paid_cents: slot.resident_fee_cents,
+      fee_paid_cents: fee_charged_cents,
       refunded_cents: 0,
       status: 'confirmed',
       confirmation_code,
@@ -278,7 +373,43 @@ function handleTool(ctx, data, name, args) {
       history: [{ at: now, action: 'booked' }],
     };
     data.court_bookings.push(booking);
-    return { data, result: { id, confirmation_code, fee_charged_cents: slot.resident_fee_cents } };
+    return { data, result: { id, confirmation_code, fee_charged_cents } };
+  }
+
+  if (name === 'trailhead-rec.court.booking.modify') {
+    c.syncVirtualExpirations(data, now);
+    const bkg = findById(data.court_bookings, args.id, 'Court booking');
+    if (bkg.status !== 'confirmed') {
+      c.fail('invalid_state_transition', `Only confirmed court bookings can be modified (current: ${bkg.status}).`);
+    }
+    const newSlot = findById(data.court_slots, args.new_slot_id, 'Court slot');
+    const fac = findById(data.facilities, newSlot.facility_id, 'Facility');
+    if (c.parseMs(newSlot.starts_at) <= c.parseMs(now)) {
+      c.fail('slot_in_past', `Court slot ${newSlot.id} starts in the past.`);
+    }
+    if (newSlot.status === 'closed_weather' || c.isFacilityClosedAt(fac, newSlot.starts_at)) {
+      c.fail('facility_closed', `Court ${newSlot.id} is closed due to weather.`);
+    }
+    if (newSlot.status !== 'open') c.fail('slot_conflict', `Court slot ${newSlot.id} is not open.`);
+
+    const fee_delta_cents = newSlot.resident_fee_cents - bkg.fee_paid_cents;
+    if (fee_delta_cents > 0 && data.household_credit_cents < fee_delta_cents) {
+      c.fail('insufficient_credit', 'Insufficient household credit for modified court fee delta.');
+    }
+    data.household_credit_cents -= fee_delta_cents;
+
+    const oldSlot = data.court_slots.find((s) => s.id === bkg.slot_id);
+    if (oldSlot && oldSlot.status === 'booked') oldSlot.status = 'open';
+    newSlot.status = 'booked';
+    bkg.slot_id = newSlot.id;
+    bkg.facility_id = newSlot.facility_id;
+    bkg.sport = newSlot.sport;
+    bkg.starts_at = newSlot.starts_at;
+    bkg.ends_at = newSlot.ends_at;
+    bkg.free_cancel_cutoff_at = newSlot.free_cancel_cutoff_at;
+    bkg.fee_paid_cents = newSlot.resident_fee_cents;
+    c.stamp(bkg, now, 'modified', `Rescheduled to ${newSlot.id}`);
+    return { data, result: { id: bkg.id, new_slot_id: newSlot.id, fee_delta_cents } };
   }
 
   if (name === 'trailhead-rec.court.cancel') {

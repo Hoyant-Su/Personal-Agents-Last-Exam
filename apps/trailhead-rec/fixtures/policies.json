@@ -28,7 +28,9 @@
       "trailhead-rec.court.search",
       "trailhead-rec.court.list_bookings",
       "trailhead-rec.court.book",
-      "trailhead-rec.court.cancel"
+      "trailhead-rec.court.cancel",
+      "trailhead-rec.enrollment.transfer",
+      "trailhead-rec.court.booking.modify"
     ],
     "constraints": {}
   }

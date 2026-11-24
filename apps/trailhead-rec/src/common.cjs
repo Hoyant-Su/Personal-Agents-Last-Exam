@@ -36,10 +36,15 @@ function nextId(prefix, list, requested) {
 }
 
 function effectivePassStatus(pass, virtualNow) {
+  if (pass.status === 'depleted' || pass.remaining_visits <= 0) return 'depleted';
   if (pass.status === 'active' && parseMs(virtualNow) > parseMs(pass.expires_at)) {
     return 'expired';
   }
   return pass.status;
+}
+
+function isFacilityClosedAt(fac, ts) {
+  return Boolean(fac && fac.closed_until && parseMs(ts) <= parseMs(fac.closed_until));
 }
 
 function effectiveEnrollmentStatus(enr, virtualNow) {
@@ -135,6 +140,7 @@ module.exports = {
   stamp,
   nextId,
   effectivePassStatus,
+  isFacilityClosedAt,
   effectiveEnrollmentStatus,
   syncVirtualExpirations,
   hasSignedWaiver,

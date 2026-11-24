@@ -9,7 +9,7 @@ function applyEvent(ctx, data, event) {
   c.parseMs(at);
   c.syncVirtualExpirations(data, at);
 
-  if (op === 'waitlist.offer_issued') {
+  if (op === 'waitlist.spot_opened') {
     const enr = data.enrollments.find((x) => x.id === p.enrollment_id);
     if (!enr) c.fail('invalid_event', `Unknown enrollment_id: ${p.enrollment_id}`);
     if (enr.status !== 'waitlisted') {

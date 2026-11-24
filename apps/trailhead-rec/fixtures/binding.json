@@ -46,10 +46,13 @@
       "prg-firstaid-trail",
       "pass-elena-lap",
       "pass-marcus-gym",
+      "pass-marcus-court",
       "enr-205",
       "enr-206",
       "enr-207",
       "enr-208",
+      "enr-2025-01",
+      "enr-2025-02",
       "crt-pine-01",
       "crt-pine-02",
       "crt-pine-03",
@@ -67,7 +70,8 @@
       "crt-fh-07",
       "crt-fh-08",
       "bkg-301",
-      "bkg-302"
+      "bkg-302",
+      "bkg-2025-01"
     ]
   }
 }

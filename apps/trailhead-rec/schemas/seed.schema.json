@@ -398,7 +398,8 @@
           "status": {
             "enum": [
               "active",
-              "expired"
+              "expired",
+              "depleted"
             ]
           },
           "issued_at": {
@@ -450,6 +451,7 @@
               "waitlisted",
               "offer_pending",
               "enrolled",
+              "transferred",
               "offer_expired",
               "declined",
               "withdrawn"
