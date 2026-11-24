@@ -10,7 +10,7 @@
     {
       "source_id": "authored",
       "kind": "synthetic",
-      "description": "Original synthetic veterinary records dated 2026-01-01 onward; zero external clinic or patient data.",
+      "description": "Original synthetic veterinary records spanning 2025-01-01 through late 2026; zero external clinic or patient data.",
       "uri": null,
       "license": "MIT",
       "usage": "permitted",
@@ -66,7 +66,7 @@
     "Normalized offset-bearing ISO-8601 timestamps (>= 2026-01-01), shared person_ref/account_id bindings, and clinical compliance rules."
   ],
   "expected_counts": {
-    "records": 59,
+    "records": 66,
     "assets": 8
   },
   "quality_policy": {

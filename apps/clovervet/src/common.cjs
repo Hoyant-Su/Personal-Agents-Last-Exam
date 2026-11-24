@@ -45,11 +45,11 @@ function nextId(prefix, list, requested) {
 
 function validateRequirementRef(ref) {
   if (ref === null || ref === undefined) return { valid: true, present: false };
-  if (typeof ref !== 'object' || Array.isArray(ref)) return { valid: false, reason: 'REFERENCE_INVALID' };
-  if (!['file_ref', 'asset_ref'].includes(ref.kind)) return { valid: false, reason: 'REFERENCE_INVALID' };
-  if (typeof ref.id !== 'string' || !ID_RE.test(ref.id)) return { valid: false, reason: 'REFERENCE_INVALID' };
+  if (typeof ref !== 'object' || Array.isArray(ref)) return { valid: false, present: true, reason: 'REFERENCE_INVALID' };
+  if (!['file_ref', 'asset_ref'].includes(ref.kind)) return { valid: false, present: true, reason: 'REFERENCE_INVALID' };
+  if (typeof ref.id !== 'string' || !ID_RE.test(ref.id)) return { valid: false, present: true, reason: 'REFERENCE_INVALID' };
   if (ref.version !== undefined && ref.version !== null) {
-    if (!Number.isInteger(ref.version) || ref.version < 1) return { valid: false, reason: 'REFERENCE_INVALID' };
+    if (!Number.isInteger(ref.version) || ref.version < 1) return { valid: false, present: true, reason: 'REFERENCE_INVALID' };
   }
   return { valid: true, present: true };
 }
@@ -138,6 +138,7 @@ function evaluateClearance(data, { pet, rule, stay_start_at, stay_end_at, requir
 
   const uniqueReasons = [...new Set(reasons)];
   const computed_valid_until = toIsoOffset(nowMs + rule.certificate_validity_days * DAY_MS);
+  const requirement_ref_status = !refCheck.present ? 'none' : refCheck.valid ? 'valid' : 'invalid';
 
   return {
     eligible: uniqueReasons.length === 0,
@@ -145,6 +146,7 @@ function evaluateClearance(data, { pet, rule, stay_start_at, stay_end_at, requir
     reasons: uniqueReasons,
     evaluated_at: virtualNow,
     computed_valid_until,
+    requirement_ref_status,
   };
 }
 

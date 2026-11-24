@@ -1016,20 +1016,15 @@
               "type": "object",
               "properties": {
                 "kind": {
-                  "enum": [
-                    "file_ref",
-                    "asset_ref"
-                  ]
+                  "type": "string"
                 },
                 "id": {
-                  "type": "string",
-                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,99}$"
+                  "type": "string"
                 },
                 "version": {
                   "anyOf": [
                     {
-                      "type": "integer",
-                      "minimum": 1
+                      "type": "integer"
                     },
                     {
                       "type": "null"
@@ -1037,10 +1032,6 @@
                   ]
                 }
               },
-              "required": [
-                "kind",
-                "id"
-              ],
               "additionalProperties": false
             }
           ]
@@ -1100,6 +1091,13 @@
         "computed_valid_until": {
           "type": "string",
           "format": "date-time"
+        },
+        "requirement_ref_status": {
+          "enum": [
+            "none",
+            "valid",
+            "invalid"
+          ]
         }
       },
       "required": [
@@ -1110,7 +1108,8 @@
         "rule_id",
         "reasons",
         "evaluated_at",
-        "computed_valid_until"
+        "computed_valid_until",
+        "requirement_ref_status"
       ],
       "additionalProperties": false
     }
@@ -1420,20 +1419,15 @@
               "type": "object",
               "properties": {
                 "kind": {
-                  "enum": [
-                    "file_ref",
-                    "asset_ref"
-                  ]
+                  "type": "string"
                 },
                 "id": {
-                  "type": "string",
-                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,99}$"
+                  "type": "string"
                 },
                 "version": {
                   "anyOf": [
                     {
-                      "type": "integer",
-                      "minimum": 1
+                      "type": "integer"
                     },
                     {
                       "type": "null"
@@ -1441,10 +1435,6 @@
                   ]
                 }
               },
-              "required": [
-                "kind",
-                "id"
-              ],
               "additionalProperties": false
             }
           ]

@@ -10,6 +10,18 @@ function findById(list, id, label) {
 
 function assetWarning(ctx, assetId) {
   if (!assetId) return null;
+  // Runtime passes ctx.assets.read(id) which throws code='unavailable' when asset is missing
+  if (ctx && ctx.assets && typeof ctx.assets.read === 'function') {
+    try {
+      ctx.assets.read(assetId);
+      return null;
+    } catch (err) {
+      if (err && (err.code === 'unavailable' || err.code === 'not_available')) {
+        return `ASSET_MISSING: optional asset ${assetId} is not materialized`;
+      }
+      throw err;
+    }
+  }
   const catalog = ctx && ctx.resources && Array.isArray(ctx.resources.assets) ? ctx.resources.assets : null;
   if (!catalog) return null;
   const desc = catalog.find((a) => a.asset_id === assetId);
@@ -20,27 +32,30 @@ function assetWarning(ctx, assetId) {
 }
 
 function checkSlotCompatibility(data, pet, slot, visitType, virtualNow, excludeApptId = null) {
-  if (slot.status !== 'open') c.fail('slot_conflict', `Slot ${slot.id} is not open (${slot.status}).`);
+  if (slot.status !== 'open') c.fail('SLOT_CONFLICT', `Slot ${slot.id} is not open (${slot.status}).`);
   if (!slot.visit_types.includes(visitType)) {
     c.fail('validation_error', `Slot ${slot.id} does not support visit type ${visitType}.`);
   }
   const vet = findById(data.vets, slot.vet_id, 'Veterinarian');
   if (!vet.species_supported.includes(pet.species)) {
-    c.fail('handling_constraint_mismatch', `Vet ${vet.id} does not treat species ${pet.species}.`);
+    c.fail('HANDLING_CONSTRAINT_MISMATCH', `Vet ${vet.id} does not treat species ${pet.species}.`);
   }
   if (visitType === 'travel_certificate_exam' && !vet.usda_accredited) {
     c.fail('validation_error', `Vet ${vet.id} is not USDA-accredited for travel certificates.`);
   }
+  if (slot.cat_only_slot && pet.species !== 'cat') {
+    c.fail('HANDLING_CONSTRAINT_MISMATCH', `Slot ${slot.id} is restricted to cats only.`);
+  }
   if (pet.handling_flags.includes('fear_free_room') && !slot.fear_free_room) {
-    c.fail('handling_constraint_mismatch', `Pet ${pet.id} requires a fear_free_room slot.`);
+    c.fail('HANDLING_CONSTRAINT_MISMATCH', `Pet ${pet.id} requires a fear_free_room slot.`);
   }
   if (pet.handling_flags.includes('cat_only_slot') && !slot.cat_only_slot) {
-    c.fail('handling_constraint_mismatch', `Pet ${pet.id} requires a cat_only_slot.`);
+    c.fail('HANDLING_CONSTRAINT_MISMATCH', `Pet ${pet.id} requires a cat_only_slot.`);
   }
   if (visitType === 'dental_cleaning') {
     const okBlood = c.hasValidLab(data, pet.id, 'pre_anesthetic_bloodwork', ['cleared'], virtualNow);
     if (!okBlood) {
-      c.fail('lab_prerequisite_missing', `Pet ${pet.id} requires valid pre_anesthetic_bloodwork within 30 days for dental_cleaning.`);
+      c.fail('LAB_PREREQUISITE_MISSING', `Pet ${pet.id} requires valid pre_anesthetic_bloodwork within 30 days for dental_cleaning.`);
     }
   }
   // Check overlapping active appointments for the same pet
@@ -51,7 +66,7 @@ function checkSlotCompatibility(data, pet, slot, visitType, virtualNow, excludeA
     const aStart = c.parseMs(a.starts_at);
     const aEnd = c.parseMs(a.ends_at);
     if (sStart < aEnd && sEnd > aStart) {
-      c.fail('slot_conflict', `Pet ${pet.id} already has an overlapping appointment ${a.id}.`);
+      c.fail('SLOT_CONFLICT', `Pet ${pet.id} already has an overlapping appointment ${a.id}.`);
     }
   }
 }
@@ -157,7 +172,7 @@ function handleTool(ctx, data, name, args) {
       virtualNow: now,
     });
     if (!check.eligible) {
-      c.fail(check.reasons[0].toLowerCase(), `Clearance prerequisites unmet: ${check.reasons.join(', ')}`);
+      c.fail(check.reasons[0], `Clearance prerequisites unmet: ${check.reasons.join(', ')}`);
     }
     const id = c.nextId('cert', data.clearances, args.id);
     const cert = {
@@ -327,23 +342,23 @@ function handleTool(ctx, data, name, args) {
     const rx = findById(data.prescriptions, args.prescription_id, 'Prescription');
     const pet = findById(data.pets, rx.pet_id, 'Pet');
     if (pet.status !== 'active') c.fail('invalid_state_transition', `Pet ${pet.id} is not active.`);
-    if (c.parseMs(now) > c.parseMs(rx.expires_at)) c.fail('prescription_expired', `Prescription ${rx.id} is expired.`);
-    if (rx.refills_remaining <= 0) c.fail('no_refills_remaining', `Prescription ${rx.id} has 0 refills remaining.`);
+    if (c.parseMs(now) > c.parseMs(rx.expires_at)) c.fail('PRESCRIPTION_EXPIRED', `Prescription ${rx.id} is expired.`);
+    if (rx.refills_remaining <= 0) c.fail('NO_REFILLS_REMAINING', `Prescription ${rx.id} has 0 refills remaining.`);
 
     const conflictAllergens = rx.allergen_tags.filter((a) => pet.allergies.includes(a));
     if (conflictAllergens.length) {
-      c.fail('allergen_conflict', `Formulation allergens (${conflictAllergens.join(', ')}) conflict with ${pet.id} allergies.`);
+      c.fail('ALLERGEN_CONFLICT', `Formulation allergens (${conflictAllergens.join(', ')}) conflict with ${pet.id} allergies.`);
     }
     if (pet.weight_kg < rx.min_weight_kg || pet.weight_kg > rx.max_weight_kg) {
-      c.fail('weight_band_mismatch', `Pet ${pet.id} weight (${pet.weight_kg} kg) is outside prescription band ${rx.min_weight_kg}-${rx.max_weight_kg} kg.`);
+      c.fail('WEIGHT_BAND_MISMATCH', `Pet ${pet.id} weight (${pet.weight_kg} kg) is outside prescription band ${rx.min_weight_kg}-${rx.max_weight_kg} kg.`);
     }
     if (rx.requires_heartworm_test && !c.hasValidLab(data, pet.id, 'heartworm_antigen', ['negative'], now)) {
-      c.fail('heartworm_test_overdue', `Pet ${pet.id} requires a valid negative heartworm_antigen test.`);
+      c.fail('HEARTWORM_TEST_OVERDUE', `Pet ${pet.id} requires a valid negative heartworm_antigen test.`);
     }
     const dup = data.refill_requests.find(
       (r) => r.prescription_id === rx.id && ['requested', 'vet_review'].includes(r.status)
     );
-    if (dup) c.fail('duplicate_active_refill', `Active refill ${dup.id} already exists for ${rx.id}.`);
+    if (dup) c.fail('DUPLICATE_ACTIVE_REFILL', `Active refill ${dup.id} already exists for ${rx.id}.`);
 
     const id = c.nextId('rfl', data.refill_requests, args.id);
     const refill_receipt_id = `rcpt-${id}`;

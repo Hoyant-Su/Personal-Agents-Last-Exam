@@ -61,17 +61,23 @@
       "vax-cleo-fvrcp",
       "vax-mochi-lepto",
       "vax-biscuit-flu",
+      "vax-mochi-rabies-2025",
+      "vax-biscuit-dhpp-2025",
+      "vax-cleo-fvrcp-2025",
       "lab-mochi-hw",
       "lab-mochi-blood-old",
       "lab-biscuit-hw",
       "lab-biscuit-blood",
       "lab-cleo-fecal",
+      "lab-mochi-hw-2025",
+      "lab-biscuit-hw-2025",
       "cert-mochi-board-01",
       "cert-biscuit-board-02",
       "appt-201",
       "appt-202",
       "appt-203",
       "appt-204",
+      "appt-2025-01",
       "rx-mochi-hw-beef",
       "rx-mochi-hw-topical",
       "rx-mochi-diet",
@@ -80,7 +86,8 @@
       "rx-cleo-renal",
       "rfl-101",
       "rfl-102",
-      "rfl-103"
+      "rfl-103",
+      "rfl-2025-01"
     ]
   }
 }
