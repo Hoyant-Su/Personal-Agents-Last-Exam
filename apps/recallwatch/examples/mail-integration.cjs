@@ -10,11 +10,13 @@ const publisher = require('../src/publisher.cjs');
 const repoRoot = path.resolve(__dirname, '../../..');
 const { Client } = require(path.join(repoRoot, 'runtime/client.cjs'));
 const { prepare } = require(path.join(repoRoot, 'runtime/prepare.cjs'));
+const webHost = require(path.join(repoRoot, 'runtime/web/server.cjs'));
 
 async function run() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pale-recallwatch-mail-'));
   const preparedRw = prepare(path.join(repoRoot, 'apps/recallwatch'), []);
   const clients = [];
+  let host = null;
   try {
     // Router config referencing real repo paths (no mutations to repo files)
     const routerConfigPath = path.join(dir, 'router-config.json');
@@ -80,6 +82,11 @@ async function run() {
     const resetSandbox = await rwInfra.call('env.reset', { expected_version: initSnap.version, profile: 'sandbox' });
     assert.equal(resetSandbox.status, 'ready');
 
+    // 0. Real MCP verification of ASSET_MISSING via ctx.assets.read() on RW-2026-020
+    const missingRecall = await rwAgent.call('recallwatch.recall.get', { id: 'RW-2026-020' });
+    assert.equal(missingRecall.status, 'ok');
+    assert.ok(missingRecall.asset_warning && missingRecall.asset_warning.startsWith('ASSET_MISSING:'));
+
     // 1. Submit draft claim clm-draft-syrup
     const beforeClaim = await rwAgent.call('recallwatch.claim.get', { id: 'clm-draft-syrup' });
     assert.equal(beforeClaim.status, 'ok');
@@ -140,14 +147,60 @@ async function run() {
     const mailAfterReset = await mailAgent.call('mail.get', { id: delivered.receipt.event_id });
     assert.equal(mailAfterReset.status, 'ok');
 
+    // 6. Real shared Web Host verification across all 4 GUI views + record-level write + env.reset 403
+    host = await webHost.start({
+      app: 'recallwatch',
+      registry: preparedRw.registry,
+      run: 'rw-web-run',
+      stateDir: path.join(dir, 'web-state'),
+      profile: 'sandbox',
+      port: 0,
+    });
+    const accessToken = new URL(host.accessUrl).hash.replace(/^#access=/, '');
+    const sessRes = await fetch(`${host.url}/session`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Origin: host.url },
+      body: JSON.stringify({ token: accessToken }),
+    });
+    assert.equal(sessRes.status, 200);
+    const cookie = sessRes.headers.get('set-cookie').split(';')[0];
+    const { csrf } = await sessRes.json();
+    const hdrs = { 'Content-Type': 'application/json', Origin: host.url, Cookie: cookie, 'x-pale-csrf': csrf };
+
+    const guiJs = await (await fetch(`${host.url}/app.js`)).text();
+    assert.ok(guiJs.includes('Household Inventory') && guiJs.includes('Watchlists') && guiJs.includes('Remedy Claims'));
+
+    let latestVer = null;
+    for (const tool of ['recallwatch.recall.search', 'recallwatch.inventory.list', 'recallwatch.watchlist.list', 'recallwatch.claim.list']) {
+      const r = await (await fetch(`${host.url}/api/call`, {
+        method: 'POST', headers: hdrs, body: JSON.stringify({ name: tool, arguments: {} }),
+      })).json();
+      assert.equal(r.status, 'ok');
+      latestVer = r.version;
+    }
+    const webSubmit = await (await fetch(`${host.url}/api/call`, {
+      method: 'POST',
+      headers: hdrs,
+      body: JSON.stringify({ name: 'recallwatch.claim.submit', arguments: { id: 'clm-draft-syrup', expected_version: latestVer, request_id: 'web-submit-syrup' } }),
+    })).json();
+    assert.equal(webSubmit.status, 'committed');
+
+    const deniedAdmin = await fetch(`${host.url}/api/call`, {
+      method: 'POST', headers: hdrs, body: JSON.stringify({ name: 'env.reset', arguments: {} }),
+    });
+    assert.equal(deniedAdmin.status, 403);
+
     return {
       passed: true,
+      mcp_asset_warning: missingRecall.asset_warning,
       claim_receipt_id: submitted.claim_receipt_id,
       mail_event_id: delivered.receipt.event_id,
       correlation: delivered.correlation,
       refused_status: refused.receipt.status,
+      web_host_verified: true,
     };
   } finally {
+    if (host) await host.close();
     await Promise.allSettled(clients.map((c) => c.close()));
     preparedRw.cleanup();
     fs.rmSync(dir, { recursive: true, force: true });

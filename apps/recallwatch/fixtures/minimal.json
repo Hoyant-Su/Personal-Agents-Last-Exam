@@ -598,6 +598,78 @@
           "note": "Initial class_ii advisory"
         }
       ]
+    },
+    {
+      "id": "RW-2025-004",
+      "brand": "HearthBrew",
+      "product_name": "Countertop Immersion Blender",
+      "upc": "156789012399",
+      "category": "small_appliances",
+      "severity": "class_ii",
+      "hazard": "blade_detachment",
+      "summary": "Lower stainless steel shaft collar may loosen during prolonged blending of hot liquids.",
+      "status": "closed",
+      "affected_lots": [
+        "LOT-HB25A",
+        "LOT-HB25B"
+      ],
+      "excluded_lots": [],
+      "remedy_types": [
+        "refund",
+        "replacement"
+      ],
+      "proof_required": false,
+      "published_at": "2025-02-14T10:00:00+00:00",
+      "updated_at": "2025-06-30T18:00:00+00:00",
+      "remedy_deadline_at": "2025-06-30T23:59:59+00:00",
+      "label_asset_id": null,
+      "history": [
+        {
+          "at": "2025-02-14T10:00:00+00:00",
+          "action": "published",
+          "note": "Initial 2025 class_ii advisory"
+        },
+        {
+          "at": "2025-06-30T18:00:00+00:00",
+          "action": "closed",
+          "note": "Remedy window completed"
+        }
+      ]
+    },
+    {
+      "id": "RW-2025-011",
+      "brand": "SunMeadow",
+      "product_name": "Roasted Almond Butter 16oz",
+      "upc": "156789012388",
+      "category": "snacks_groceries",
+      "severity": "class_i",
+      "hazard": "undeclared_sesame",
+      "summary": "Undeclared sesame allergen detected in single production run.",
+      "status": "closed",
+      "affected_lots": [
+        "LOT-SM2509"
+      ],
+      "excluded_lots": [],
+      "remedy_types": [
+        "refund"
+      ],
+      "proof_required": false,
+      "published_at": "2025-09-12T08:30:00+00:00",
+      "updated_at": "2025-11-30T17:00:00+00:00",
+      "remedy_deadline_at": "2025-11-30T23:59:59+00:00",
+      "label_asset_id": null,
+      "history": [
+        {
+          "at": "2025-09-12T08:30:00+00:00",
+          "action": "published",
+          "note": "Initial 2025 allergen advisory"
+        },
+        {
+          "at": "2025-11-30T17:00:00+00:00",
+          "action": "closed",
+          "note": "All affected jars removed from retail"
+        }
+      ]
     }
   ],
   "inventory": [
@@ -864,6 +936,33 @@
           "action": "registered"
         }
       ]
+    },
+    {
+      "id": "item-blender-2025-archived",
+      "account_id": "acct-priya",
+      "brand": "HearthBrew",
+      "product_name": "Countertop Immersion Blender",
+      "upc": "156789012399",
+      "category": "small_appliances",
+      "lot_code": "LOT-HB25A",
+      "purchase_date": "2025-01-19",
+      "holder_person_ref": "person-priya",
+      "location_note": "returned_remedy_complete",
+      "status": "archived",
+      "disposal_note": "Returned under RW-2025-004 refund claim",
+      "created_at": "2025-02-16T09:15:00+00:00",
+      "updated_at": "2025-03-04T14:20:00+00:00",
+      "history": [
+        {
+          "at": "2025-02-16T09:15:00+00:00",
+          "action": "registered"
+        },
+        {
+          "at": "2025-03-04T14:20:00+00:00",
+          "action": "archived",
+          "note": "Refund issued"
+        }
+      ]
     }
   ],
   "watchlists": [
@@ -1125,6 +1224,42 @@
           "at": "2026-11-15T14:00:00+00:00",
           "action": "withdrawn",
           "note": "Already returned to store"
+        }
+      ]
+    },
+    {
+      "id": "clm-2025-blender-approved",
+      "account_id": "acct-priya",
+      "recall_id": "RW-2025-004",
+      "item_id": "item-blender-2025-archived",
+      "lot_code": "LOT-HB25A",
+      "remedy_type": "refund",
+      "status": "approved_refund",
+      "proof_ref": null,
+      "recipient_person_ref": "person-priya",
+      "recipient_name": "Priya Nair",
+      "shipping_address": "410 Maple Ave, Apt 3B, Exampleton, MA 02100",
+      "payout_method": "direct_deposit",
+      "notes": "2025 refund claim settled in March 2025.",
+      "claim_receipt_id": "rcpt-clm-2025-blender",
+      "decision_amount_cents": 6499,
+      "decision_note": "Full refund issued on 2025-03-04",
+      "created_at": "2025-02-16T09:30:00+00:00",
+      "updated_at": "2025-03-04T14:20:00+00:00",
+      "submitted_at": "2025-02-16T09:35:00+00:00",
+      "history": [
+        {
+          "at": "2025-02-16T09:30:00+00:00",
+          "action": "created_draft"
+        },
+        {
+          "at": "2025-02-16T09:35:00+00:00",
+          "action": "submitted"
+        },
+        {
+          "at": "2025-03-04T14:20:00+00:00",
+          "action": "approved",
+          "note": "Refund issued"
         }
       ]
     }

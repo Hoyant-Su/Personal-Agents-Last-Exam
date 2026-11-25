@@ -10,7 +10,7 @@
     {
       "source_id": "authored",
       "kind": "synthetic",
-      "description": "Original hand-authored synthetic product-safety recalls, household items, watchlists and claims; zero scraped agency or third-party data.",
+      "description": "Original hand-authored synthetic product-safety recalls, household items, watchlists and claims spanning 2025-02-14 through 2026-11; zero scraped agency or third-party data.",
       "uri": null,
       "license": "MIT",
       "usage": "permitted",
@@ -66,7 +66,7 @@
     "Normalized offset-bearing ISO-8601 timestamps, lot codes, and shared account/person IDs."
   ],
   "expected_counts": {
-    "records": 40,
+    "records": 44,
     "assets": 8
   },
   "quality_policy": {

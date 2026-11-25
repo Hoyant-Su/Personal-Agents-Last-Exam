@@ -10,6 +10,17 @@ function findById(list, id, label) {
 
 function checkAssetWarning(ctx, assetId) {
   if (!assetId) return null;
+  if (ctx && ctx.assets && typeof ctx.assets.read === 'function') {
+    try {
+      ctx.assets.read(assetId);
+      return null;
+    } catch (err) {
+      if (err && (err.code === 'unavailable' || err.code === 'not_available' || err.code === 'not_found')) {
+        return `ASSET_MISSING: optional label asset ${assetId} is not materialized`;
+      }
+      throw err;
+    }
+  }
   const catalog = ctx && ctx.resources && Array.isArray(ctx.resources.assets) ? ctx.resources.assets : null;
   if (!catalog) return null;
   const desc = catalog.find((a) => a.asset_id === assetId);
