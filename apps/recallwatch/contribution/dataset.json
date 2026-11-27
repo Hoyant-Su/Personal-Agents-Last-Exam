@@ -2,7 +2,7 @@
   "schema_version": "pale.dataset.v1",
   "dataset_id": "recallwatch-minimal",
   "version": "1.0.0",
-  "description": "Original synthetic product-safety recalls, household product inventory, alert watchlists, remedy claims and label cards for reproducible RecallWatch acceptance.",
+  "description": "44-record smoke fixture (fixtures/minimal.json) for fast RecallWatch unit and runtime verification. For the full 2025-01-01..2026-12-31 evaluation corpus (446 records across 318 distinct UTC dates), see contribution/dataset.full-window.json, fixtures/full-window.json, and examples/coverage-report.cjs.",
   "record_source_ids": [
     "authored"
   ],
@@ -77,6 +77,6 @@
   "review": {
     "status": "pending",
     "reviewer": null,
-    "notes": "Automated checks do not replace human review of realism, variation and provenance."
+    "notes": "44-record smoke fixture (fixtures/minimal.json) kept distinct from the full-window corpus declared in contribution/dataset.full-window.json (fixtures/full-window.json, report: examples/coverage-report.cjs). Automated checks do not replace human review of realism, variation and provenance."
   }
 }

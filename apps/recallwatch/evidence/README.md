@@ -44,13 +44,14 @@ This index documents the real Chromium GUI workflow sequence, reference-product 
 
 ## 5. Full-Window Environment Dataset Coverage (2025-01-01 to 2026-12-31)
 
-- **Delivered datasets:**
-  - `fixtures/minimal.json`: 44 records (smoke fixture used by `app:verify` and unit tests; 17 distinct UTC dates from `2025-02-14` to `2026-11-16`, SHA-256 `28bf2cb13c602968e26a94a5e7d14f283fc66dace8a1c2dfe7b071ce50bcae78`).
-  - `fixtures/full-window.json`: **446 records** (**100% synthetic `authored`**; SHA-256 `87832fedb1ed89a19db14c3a31ad45471f93685ea56a4d09721f2d152416d09e`) covering **all 24 months** from **`2025-01-02` through `2026-12-27`** with **318 global deduplicated distinct calendar dates** in `UTC` and **0 missing months**:
+- **Delivered datasets (kept explicitly distinct):**
+  - `fixtures/minimal.json` (manifest: [`contribution/dataset.json`](../contribution/dataset.json)): 44-record smoke fixture used by `app:verify` and unit tests (17 distinct UTC dates from `2025-02-14` to `2026-11-16`, SHA-256 `28bf2cb13c602968e26a94a5e7d14f283fc66dace8a1c2dfe7b071ce50bcae78`).
+  - `fixtures/full-window.json` (separate manifest: [`contribution/dataset.full-window.json`](../contribution/dataset.full-window.json)): **446 records** (**100% synthetic `authored`**; SHA-256 `87832fedb1ed89a19db14c3a31ad45471f93685ea56a4d09721f2d152416d09e`) covering **all 24 months** from **`2025-01-02` through `2026-12-27`** with **318 global deduplicated distinct calendar dates** in `UTC` and **0 missing months**:
     - `recalls` (`published_at`): 332 records across 318 distinct dates
     - `inventory` (`created_at`): 76 records across 63 distinct dates
     - `watchlists` (`created_at`): 6 records across 1 distinct date
     - `claims` (`created_at`): 32 records across 29 distinct dates
+  - **As-of-clock boundary note:** `fixtures/full-window.json` spans the full 2025–2026 Environment coverage window and is **not** an as-of snapshot at `fixtures/clock.json` (`2026-11-18T09:00:00+00:00`): 18 recall publications and 4 inventory creations are dated on or after that instant. Any Task reusing this corpus for pre-session history should filter to a strict pre-session subset (`< first_session_at`) or stage later records through authorized Infra events (`recall.publish`, etc.).
 - **Reproducible calculation & live MCP load/query verification:**
   ```bash
   node apps/recallwatch/examples/coverage-report.cjs
